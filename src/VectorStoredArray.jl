@@ -1,43 +1,61 @@
 module VectorStoredArray
-export StoredStructure,StoredNode,Storage,ImutableStorage, StoredValue,applytomatrix
-
+export StoredStructure,StoredNode,Storage,ImutableStorage, StoredValue,applytomatrix,SetStorage,SetI,printS
 abstract type StoredStructure end
 abstract type StoredNode <: StoredStructure end
 
 mutable struct Storage<: StoredStructure
     tree::StoredStructure
-    values::Array{Float32,1}
-    pointer::SubArray{Float32}
+    values::Array{Float32}
+    i::Int64
+    j::Int64
+    Single::Bool
     function Storage()
         x=new()
         x.tree=x
         x.values=Array{Float32}(undef, 0)
-        x.pointer=view(x.values,:)
+        x.i=1
+        x.j=1
+        x.Single=true
         return x
     end
 end
 
 
+
+function SetStorage(S::Storage,z)
+    S.Single=false
+    S.values=z
+end
+
+function SetI(S::Storage,i::Int64)
+    S.i=i
+end
+
+function SetI(S::Storage,i::Int64,j::Int64)
+    S.i=i
+    S.j=j
+end
+
 struct ImutableStorage{T} <: StoredStructure
     tree::T
-    pointer::Array{Float32}
+    values::Array{Float32}
 end
 
 function ImutableStorage(S::Storage)
-    pointer=S.values
-    tree=SwapPointer(S.tree,pointer)
-    return ImutableStorage(tree,pointer)
+    values=S.values
+    tree=SwapPointer(S.tree,S)
+    return ImutableStorage(tree,values)
 end
 
-function SwapPointer(tree::T,pointer::Array{Float32}) where {T<:StoredNode} 
+function SwapPointer(tree::T,S::Storage) where {T<:StoredNode} 
     FieldsInStruct=fieldnames(T)
     s=tuple()
     for n in FieldsInStruct
         f=getfield(tree,n)
         if f isa StoredValue
-            out=StoredValue(view(pointer,f.index),f.index)
+            out=StoredValue(S,f.index)
         else
-        out=SwapPointer(f,pointer)    
+        out=SwapPointer(f,S)    
         end
         s=(s...,out)
     end
@@ -46,11 +64,11 @@ end
 
 function Base.setproperty!(x::Storage,y::Symbol,z::StoredNode)
     setfield!(x,y,z)
-    setfield!(x,:pointer,view(x.values,1:length(x.values)))
+    #setfield!(x,:values,view(x.values,1:length(x.values)))
 end
 
 struct StoredValue
-    store::SubArray{Float32}
+    store::Storage
     index::UnitRange{Int64}
 end
 
@@ -71,10 +89,53 @@ end
 function Base.getproperty(x::StoredNode,y::Symbol)
     p=getfield(x,y)
     if (p isa StoredValue)
-        p=p.store
+        if ndims(p.store.values)==3
+        if p.store.Single
+        p=p.store.values[p.index,p.store.i,p.store.j]
+        else
+        p=p.store.values[p.index,:,:]    
+        end
+        else
+            if p.store.Single
+                p=p.store.values[p.index,p.store.i]
+                else
+                p=p.store.values[p.index,:]    
+                end
+        end
     end
     return p
 end
+
+function printS(x::StoredNode,S::String)
+    for nm in fieldnames(typeof(x))
+        p=getfield(x,nm)
+        printS(p,S*"."*string(nm))
+    end
+end
+
+function printS(p::StoredValue,S::String)
+    if ndims(p.store.values)==3
+        if p.store.Single
+        p=p.store.values[p.index,p.store.i,p.store.j]
+        else
+        p=p.store.values[p.index,:,:]    
+        end
+    else
+            if p.store.Single
+                p=p.store.values[p.index,p.store.i]
+                else
+                p=p.store.values[p.index,:]    
+                end
+    end
+    
+    println(S)
+    println(p)
+end
+
+function printS(x::Storage,S::String)
+    printS(x.tree,S*".")
+end
+
 
 function applytomatrix(x::SubArray,m::Array{Float32})
     i=only(x.indices)
@@ -86,7 +147,11 @@ end
 function Base.setproperty!(x::StoredNode,y::Symbol,z)
     p=getfield(x,y)
     if (p isa StoredValue)
-        p.store[:]=TurnToArray(z)
+        if ndims(p.store.values)==3
+        p.store.values[p.index,p.store.i,p.store.j]=TurnToArray(z)
+        else
+            p.store.values[p.index,p.store.i]=TurnToArray(z)  
+        end
     else
         p=setfield!(x,y,z)
     end
@@ -102,7 +167,7 @@ function AssignVariable(s,p)
         nl=length(iterator)   
         x=TurnToArray(iterator)
         s.values=[s.values;x]
-        x=StoredValue(view(s.values,el+1:el+nl),el+1:el+nl)
+        x=StoredValue(s,el+1:el+nl)
         end
         t=tuple(t...,x)
     end
