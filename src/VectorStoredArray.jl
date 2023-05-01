@@ -3,7 +3,7 @@ export StoredStructure,StoredNode,Storage,ImutableStorage, StoredValue,applytoma
 abstract type StoredStructure end
 abstract type StoredNode <: StoredStructure end
 
-FloatType=Float64
+using FloatingNumberType
 
 mutable struct Storage<: StoredStructure
     tree::StoredStructure
