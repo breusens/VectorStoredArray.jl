@@ -3,16 +3,18 @@ export StoredStructure,StoredNode,Storage,ImutableStorage, StoredValue,applytoma
 abstract type StoredStructure end
 abstract type StoredNode <: StoredStructure end
 
+FloatType=Float64
+
 mutable struct Storage<: StoredStructure
     tree::StoredStructure
-    values::Array{Float32}
+    values::Array{FloatType}
     i::Int64
     j::Int64
     Single::Bool
     function Storage()
         x=new()
         x.tree=x
-        x.values=Array{Float32}(undef, 0)
+        x.values=Array{FloatType}(undef, 0)
         x.i=1
         x.j=1
         x.Single=true
@@ -38,7 +40,7 @@ end
 
 struct ImutableStorage{T} <: StoredStructure
     tree::T
-    values::Array{Float32}
+    values::Array{FloatType}
 end
 
 function ImutableStorage(S::Storage)
@@ -137,7 +139,7 @@ function printS(x::Storage,S::String)
 end
 
 
-function applytomatrix(x::SubArray,m::Array{Float32})
+function applytomatrix(x::SubArray,m::Array{FloatType})
     i=only(x.indices)
 
     ms=m[i,:]
