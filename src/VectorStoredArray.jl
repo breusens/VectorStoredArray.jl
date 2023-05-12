@@ -7,7 +7,7 @@ using FloatingNumberType
 
 mutable struct Storage<: StoredStructure
     tree::StoredStructure
-    values::Array{FloatType}
+    values::Array{SimType}
     i::Int64
     j::Int64
     Single::Bool
